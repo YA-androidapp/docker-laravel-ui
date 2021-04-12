@@ -2,6 +2,18 @@ FROM php:8.0-fpm-buster
 LABEL maintainer="yaand"
 SHELL ["/bin/bash", "-oeux", "pipefail", "-c"]
 
+ARG DB_HOST
+ARG DB_PORT
+ARG DB_DATABASE
+ARG DB_USERNAME
+ARG DB_PASSWORD
+
+RUN export DB_HOST=$DB_HOST
+RUN export DB_PORT=$DB_PORT
+RUN export DB_DATABASE=$DB_DATABASE
+RUN export DB_USERNAME=$DB_USERNAME
+RUN export DB_PASSWORD=$DB_PASSWORD
+
 # timezone environment
 ENV TZ=UTC \
   # locale
@@ -29,3 +41,20 @@ COPY ./infra/docker/php/php-fpm.d/zzz-www.conf /usr/local/etc/php-fpm.d/zzz-www.
 COPY ./infra/docker/php/php.ini /usr/local/etc/php/php.ini
 
 WORKDIR /work/backend
+
+RUN composer create-project --prefer-dist laravel/laravel . && \
+  php artisan key:generate && \
+  php artisan storage:link && \
+  chmod -R 777 storage bootstrap/cache
+
+RUN php artisan migrate:fresh --seed
+
+RUN composer require doctrine/dbal "^2" && \
+  composer require --dev barryvdh/laravel-Debugbar && \
+  php artisan vendor:publish --provider="Barryvdh\Debugbar\ServiceProvider" && \
+  composer require webpatser/laravel-uuid && \
+  composer require laravel/ui && \
+  composer require ibex/crud-generator --dev && \
+  php artisan vendor:publish --tag=crud && \
+  php artisan ui vue --auth && \
+  sed -i 's/.sourceMaps()/.sourceMaps().vue({ version: 2 })/g' ./webpack.mix.js

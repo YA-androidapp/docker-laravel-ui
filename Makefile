@@ -1,35 +1,17 @@
 install:
-	rm -f ./backend/.e* && rm -f ./backend/.g* && rm -f ./backend/.s*
-	rm -rf ./backend/*
-	chmod 444 ./infra/docker/mysql/my.cnf
-	@make build
-	@make up
-	@make laravel-install
-	docker-compose exec app php artisan key:generate
-	docker-compose exec app php artisan storage:link
-	docker-compose exec app chmod -R 777 storage bootstrap/cache
-	@make fresh
-	@make packages-install
-
+	docker-compose build --no-cache --force-rm db
+	docker-compose up -d db
+	docker-compose build --no-cache --force-rm app
+	docker-compose up -d app
+	docker-compose build --no-cache --force-rm web
+	docker-compose up -d
+	docker-compose exec web npm install
+	docker-compose exec web npm install vue-loader@^15.9.5 --save-dev --legacy-peer-deps
+	docker-compose exec web npm run dev
 up:
 	docker-compose up -d
 build:
 	docker-compose build --no-cache --force-rm
-laravel-install:
-	docker-compose exec app composer create-project --prefer-dist laravel/laravel .
-packages-install:
-	docker-compose exec app composer require doctrine/dbal "^2"
-	docker-compose exec app composer require --dev barryvdh/laravel-Debugbar
-	docker-compose exec app php artisan vendor:publish --provider="Barryvdh\Debugbar\ServiceProvider"
-	docker-compose exec app composer require webpatser/laravel-uuid
-	docker-compose exec app composer require laravel/ui
-	docker-compose exec app composer require ibex/crud-generator --dev
-	docker-compose exec app php artisan vendor:publish --tag=crud
-	docker-compose exec app php artisan ui vue --auth
-	docker-compose exec app sed -i 's/.sourceMaps()/.sourceMaps().vue({ version: 2 })/g' ./webpack.mix.js
-	docker-compose exec web npm install vue-loader@^15.9.5 --save-dev --legacy-peer-deps
-	docker-compose exec web npm install
-	docker-compose exec web npm run dev
 init:
 	docker-compose up -d --build
 	docker-compose exec app composer install

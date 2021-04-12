@@ -6,15 +6,25 @@ networks:
 volumes:
   php-fpm-socket:
   db-store:
+  backend:
 
 services:
   app:
+    image: yaand/laravel-ui-app:latest
     build:
       context: .
       dockerfile: ./infra/docker/php/Dockerfile
+      network: docker-laravel-ui_appnetwork
+      args:
+        - DB_CONNECTION=mysql
+        - DB_HOST=db
+        - DB_PORT=3306
+        - DB_DATABASE=${DB_NAME:-laravel_local}
+        - DB_USERNAME=${DB_USER:-phper}
+        - DB_PASSWORD=${DB_PASS:-secret}
     volumes:
       - php-fpm-socket:/var/run/php-fpm
-      - ./backend:/work/backend
+      - backend:/work/backend
     environment:
       - DB_CONNECTION=mysql
       - DB_HOST=db
@@ -28,6 +38,7 @@ services:
       - appnetwork
 
   web:
+    image: yaand/laravel-ui-web:latest
     build:
       context: .
       dockerfile: ./infra/docker/nginx/Dockerfile
@@ -35,13 +46,14 @@ services:
       - ${WEB_PORT:-80}:80
     volumes:
       - php-fpm-socket:/var/run/php-fpm
-      - ./backend:/work/backend
+      - backend:/work/backend
     depends_on:
       - app
     networks:
       - appnetwork
 
   db:
+    image: yaand/laravel-ui-db:latest
     build:
       context: .
       dockerfile: ./infra/docker/mysql/Dockerfile
